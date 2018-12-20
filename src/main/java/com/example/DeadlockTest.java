@@ -2,14 +2,14 @@ package com.example;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.nio.ByteBuffer;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -36,15 +36,16 @@ public class DeadlockTest {
 
     final ScheduledExecutorService threadPool = Executors.newScheduledThreadPool(numThreads);
     final AtomicInteger completedTasks = new AtomicInteger(0);
+    final Object lock = new Object();
     IntStream.range(0, numTasks)
         .mapToObj(i -> threadPool.submit(() -> {
           final LongAdder myAdder = completedTasksPerThread.get(Thread.currentThread().getName());
           for (int j = 0; j < numIterations; j++) {
-            try {
-              MessageDigest.getInstance("SHA1");
+            synchronized (lock) {
+              // on heap
+              ByteBuffer bb = ByteBuffer.allocate(16);
+              bb.putLong(ThreadLocalRandom.current().nextLong());
               myAdder.increment();
-            } catch (final NoSuchAlgorithmException e) {
-              throw new RuntimeException(e);
             }
           }
           completedTasks.incrementAndGet();
@@ -62,6 +63,8 @@ public class DeadlockTest {
         break;
       } else if (onlyOneThreadIsMakingProgress(completedTasksPerThread, snapshot)) {
         System.out.println("Timeout waiting for tasks to complete.");
+        dumpThreads();
+        Thread.sleep(60000);
         dumpThreads();
         dumpTaskCounts(completedTasksPerThread);
         if (!waitOnDeadlock) {
