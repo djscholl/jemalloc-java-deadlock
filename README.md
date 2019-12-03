@@ -1,5 +1,7 @@
 # JEMalloc Java Deadlock test
 
+This test code was created to reprocuce a JVM bug when running with Jemalloc 5.1+ that results in a thread permanently hodling onto an object monitor even though the code has exited the synchronized block. Defects have been filed with both [jemalloc](https://github.com/jemalloc/jemalloc/issues/1392) and the [JVM](https://bugs.openjdk.java.net/browse/JDK-8215355).
+
 ### How to build
 `mvn package`
 
